@@ -70,11 +70,11 @@
         subroutine test9(rc)
             integer, intent(out)                      :: rc
             integer                                   :: localrc, i, npet
+            integer                                   :: sideACount, sideBCount, XgridCount     
+            character(512)                            :: sideA, sideB                  
             type(ESMF_XGrid)                          :: xgrid
             type(ESMF_Field)                          :: f_xgrid
-            type(ESMF_Mesh), allocatable              :: sideA(:)
             type(ESMF_Field), allocatable             :: sideAFrac(:), sideAArea(:)
-            type(ESMF_Mesh), allocatable              :: sideBGrid(:)
             type(ESMF_Field), allocatable             :: sideBFrac(:), sideBArea(:)
         
             type(ESMF_VM)                       :: vm
@@ -95,16 +95,24 @@
               ESMF_ERR_PASSTHRU, &
               ESMF_CONTEXT, rcToReturn=rc)) return
         
-            ! up, down
+            ! Validate input files
             write(name, *) "Creating XGrid from Input Mosaics"
             write(name, *) "SideA:",sideA
             write(name, *) "SideB:",sideB
+
+            ! up, down
             xgrid = ESMF_XGridCreate(sideAMesh=sideA, &
               sideBMesh=sideB, &
               rc=localrc)
             if (ESMF_LogFoundError(localrc, &
               ESMF_ERR_PASSTHRU, &
               ESMF_CONTEXT, rcToReturn=rc)) return
+
+            ! record the number of cells
+            call ESMF_MeshGet(mesh=sideA, nodeCount=sideACount, rc=localrc)
+            call ESMF_MeshGet(mesh=sideB, nodeCount=sideBCount, rc=localrc)
+            call ESMF_MeshGet(mesh=xgrid, nodeCount=XgridCount, rc=localrc)
+            write(name,*) "Num cells A/B/X: ",sideACount,"/",sideBCount,"/",XgridCount
 
             call flux_exchange_sph_mesh(xgrid, rc=localrc)
             if (ESMF_LogFoundError(localrc, &
