@@ -71,7 +71,7 @@
             integer, intent(out)                      :: rc
             integer                                   :: localrc, i, npet
             integer                                   :: sideACount, sideBCount, XgridCount     
-            character(512)                            :: sideA, sideB                  
+            character(100)                            :: sideA, sideB                  
             type(ESMF_XGrid)                          :: xgrid
             type(ESMF_Field)                          :: f_xgrid
             type(ESMF_Field), allocatable             :: sideAFrac(:), sideAArea(:)
@@ -82,8 +82,8 @@
         
             rc = ESMF_SUCCESS
             localrc = ESMF_SUCCESS
-            sideA = './data/C48_mosaic.nc'
-            sideB = './data/ocean_mosaic.nc'
+            write(sideA,*) "./data/C48_mosaic.nc"
+            write(sideB,*) "./data/ocean_mosaic.nc"
         
             call ESMF_VMGetCurrent(vm=vm, rc=localrc)
             if (ESMF_LogFoundError(localrc, &
