@@ -112,7 +112,7 @@
             call ESMF_MeshGet(mesh=sideA, nodeCount=sideACount, rc=localrc)
             call ESMF_MeshGet(mesh=sideB, nodeCount=sideBCount, rc=localrc)
             call ESMF_MeshGet(mesh=xgrid, nodeCount=XgridCount, rc=localrc)
-            write(name,*) "Num cells A/B/X: ",sideACount,"/",sideBCount,"/",XgridCount
+            print *, "Num cells A/B/X: ",sideACount,"/",sideBCount,"/",XgridCount
 
             call flux_exchange_sph_mesh(xgrid, rc=localrc)
             if (ESMF_LogFoundError(localrc, &
@@ -344,8 +344,8 @@
               if (ESMF_LogFoundError(localrc, &
                   ESMF_ERR_PASSTHRU, &
                   ESMF_CONTEXT, rcToReturn=rc)) return
-              call ESMF_MeshWrite(srcGrid(i), cids(i)//'_srcmesh.vtk', rc=localrc)
-              call ESMF_FieldWrite(srcGrid(i), cids(i)//'_srcfield.vtk', rc=localrc)
+              !call ESMF_MeshWrite(srcGrid(i), cids(i)//'_srcmesh.vtk', rc=localrc)
+              !call ESMF_FieldWrite(srcGrid(i), cids(i)//'_srcfield.vtk', rc=localrc)
               if (ESMF_LogFoundError(localrc, &
                   ESMF_ERR_PASSTHRU, &
                   ESMF_CONTEXT, rcToReturn=rc)) return
@@ -362,8 +362,8 @@
               if (ESMF_LogFoundError(localrc, &
                   ESMF_ERR_PASSTHRU, &
                   ESMF_CONTEXT, rcToReturn=rc)) return
-              call ESMF_MeshWrite(dstGrid(i), cids(i)//'_dstmesh.vtk', rc=localrc)
-              call ESMF_FieldWrite(dstField(i), cids(i)//'_dstfield.vtk', rc=localrc)
+              !call ESMF_MeshWrite(dstGrid(i), cids(i)//'_dstmesh.vtk', rc=localrc)
+              !call ESMF_FieldWrite(dstField(i), cids(i)//'_dstfield.vtk', rc=localrc)
               if (ESMF_LogFoundError(localrc, &
                   ESMF_ERR_PASSTHRU, &
                   ESMF_CONTEXT, rcToReturn=rc)) return
@@ -393,8 +393,8 @@
             enddo
         
             ! make sure flux is conserved on XGrid
-            call ESMF_MeshWrite(xgrid%xgtypep%mesh, 'xgrid.vtk', rc=localrc)
-            call ESMF_FieldWrite(f_xgrid%xgtypep%field, 'f_xgrid.vtk', rc=localrc)
+            !call ESMF_MeshWrite(xgrid%xgtypep%mesh, 'xgrid.vtk', rc=localrc)
+            !call ESMF_FieldWrite(f_xgrid%xgtypep%field, 'f_xgrid.vtk', rc=localrc)
             if (ESMF_LogFoundError(localrc, &
                 ESMF_ERR_PASSTHRU, &
                 ESMF_CONTEXT, rcToReturn=rc)) return
