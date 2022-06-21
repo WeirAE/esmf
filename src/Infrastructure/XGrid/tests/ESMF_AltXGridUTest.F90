@@ -73,12 +73,13 @@
             integer                                   :: sideACount, sideBCount, XgridCount     
             character(100)                            :: sideA, sideB                  
             type(ESMF_XGrid)                          :: xgrid
+            type(ESMF_Grid)                           :: gridA, gridB
             type(ESMF_Field)                          :: f_xgrid
             type(ESMF_Field), allocatable             :: sideAFrac(:), sideAArea(:)
             type(ESMF_Field), allocatable             :: sideBFrac(:), sideBArea(:)
         
-            type(ESMF_VM)                       :: vm
-            real(ESMF_KIND_R8)                  :: xgrid_area(12), B_area(2,2)
+            type(ESMF_VM)                             :: vm
+            real(ESMF_KIND_R8)                        :: xgrid_area(12), B_area(2,2)
         
             rc = ESMF_SUCCESS
             localrc = ESMF_SUCCESS
@@ -99,18 +100,29 @@
             print *, "Creating XGrid from Input Mosaics"
             print *, "SideA:",sideA
             print *, "SideB:",sideB
+            gridA = ESMF_GridCreateMosaic(filename=sideA, &
+                staggerLocList= staggerLocList, &
+                coordTypeKind = ESMF_TYPEKIND_R8, &
+                tileFilePath='./data/', rc=localrc)
+            gridB = ESMF_GridCreateMosaic(filename=sideB, &
+                staggerLocList= staggerLocList, &
+                coordTypeKind = ESMF_TYPEKIND_R8, &
+                tileFilePath='./data/', rc=localrc) 
+            if (ESMF_LogFoundError(localrc, &
+              ESMF_ERR_PASSTHRU, &
+              ESMF_CONTEXT, rcToReturn=rc)) return
 
             ! up, down
-            xgrid = ESMF_XGridCreate(sideAGrid=sideA, &
-              sideBGrid=sideB, &
+            xgrid = ESMF_XGridCreate(sideAGrid=gridA, &
+              sideBGrid=gridB, &
               rc=localrc)
             if (ESMF_LogFoundError(localrc, &
               ESMF_ERR_PASSTHRU, &
               ESMF_CONTEXT, rcToReturn=rc)) return
 
             ! record the number of cells
-            call ESMF_GridGet(grid=sideA, nodeCount=sideACount, rc=localrc)
-            call ESMF_GridGet(grid=sideB, nodeCount=sideBCount, rc=localrc)
+            call ESMF_GridGet(grid=gridA, nodeCount=sideACount, rc=localrc)
+            call ESMF_GridGet(grid=gridB, nodeCount=sideBCount, rc=localrc)
             call ESMF_XGridGet(xgrid=xgrid, elementCount=XgridCount, rc=localrc)
             print *, "Num cells A/B/X: ",sideACount,"/",sideBCount,"/",XgridCount
 
