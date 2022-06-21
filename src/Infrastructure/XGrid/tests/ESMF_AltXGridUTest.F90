@@ -96,9 +96,9 @@
               ESMF_CONTEXT, rcToReturn=rc)) return
         
             ! Validate input files
-            write(name, *) "Creating XGrid from Input Mosaics"
-            write(name, *) "SideA:",sideA
-            write(name, *) "SideB:",sideB
+            print *, "Creating XGrid from Input Mosaics"
+            print *, "SideA:",sideA
+            print *, "SideB:",sideB
 
             ! up, down
             xgrid = ESMF_XGridCreate(sideAMesh=sideA, &
