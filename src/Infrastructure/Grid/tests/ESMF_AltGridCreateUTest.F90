@@ -95,7 +95,7 @@ program ESMF_AltGridCreateUTest
   integer :: total, s,  decount, localDe
   type(ESMF_Staggerloc) :: staggerLocList(2)
   type(ESMF_CubedSphereTransform_Args) :: transformArgs
-  character(512) :: mosaicIn   
+  character(100) :: mosaicIn   
  
   !-----------------------------------------------------------------------------
   call ESMF_TestStart(ESMF_SRCLINE, rc=rc)
@@ -119,7 +119,7 @@ program ESMF_AltGridCreateUTest
   write(failMsg, *) "Returns incorrect results"
 
   rc = ESMF_SUCCESS
-  mosaicIn = 'data/C48_mosaic.nc'
+  write(mosaicIn, *) "./data/C48_mosaic.nc"
 
   staggerLocList(1) = ESMF_STAGGERLOC_CENTER
   staggerLocList(2) = ESMF_STAGGERLOC_CORNER
@@ -148,13 +148,14 @@ program ESMF_AltGridCreateUTest
 
   ! Create cubed sphere grid with coordTypeKind == ESMF_TYPEKIND_R8
   print *, 'Reading file ', mosaicIn
+  !call ESMF_MeshWrite(mosaicIn, 'mosaicIn.vtk', rc=localrc)
   grid2 = ESMF_GridCreateMosaic(filename=mosaicIn, &
                 staggerLocList= staggerLocList, &
                 coordTypeKind = ESMF_TYPEKIND_R8, &
                 tileFilePath='./data/', rc=localrc)
   if (localrc .ne. ESMF_SUCCESS) rc=ESMF_FAILURE
   
-  call ESMF_MeshWrite(grid2, cids(i)//'_mosaic2grid.vtk', rc=localrc)
+  call ESMF_MeshWrite(grid2, 'mosaic2grid.vtk', rc=localrc)
   
   do s = 1, 2
     do localDe = 0, decount-1  
