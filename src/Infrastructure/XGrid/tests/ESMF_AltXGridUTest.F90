@@ -238,6 +238,7 @@
         
             nsrc = sideAMC
             ndst = sideBMC
+            print *, 'Cell counts A/B: ', nsrc, ndst
             allocate(srcGrid(nsrc), srcField(nsrc), srcFrac(nsrc), srcFrac2(nsrc), srcArea(nsrc))
             allocate(dstGrid(ndst), dstField(ndst), dstFrac(ndst), dstFrac2(ndst), dstArea(ndst))
         
