@@ -378,7 +378,6 @@ program ESMF_AltGridCreateUTest
   call ESMF_Test((rc==ESMF_RC_LIB_NOT_PRESENT), name, failMsg, result, ESMF_SRCLINE) 
 #endif
 
-  call ESMF_TestEnd(ESMF_SRCLINE)
   !-----------------------------------------------------------------------------
     !NEX_UTest
   write(name, *) "Test OCN ESMF_GridCreate with different coordTypeKind with GRIDSPEC supergrid tile file"
