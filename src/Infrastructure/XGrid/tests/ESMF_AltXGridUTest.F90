@@ -78,7 +78,7 @@ contains
     integer                             :: sideACount, sideBCount, XgridCount  
     character(100)                      :: mosaicA, mosaicB
     type(ESMF_XGrid)                    :: xgrid
-    type(ESMF_Grid)                     :: sideA, sideB
+    type(ESMF_Grid)                     :: sideA(1), sideB(1)
     type(ESMF_VM)                       :: vm
     real(ESMF_KIND_R8)                  :: xgrid_area(12), B_area(2,2)
     type(ESMF_Staggerloc)               :: staggerLocList(2)
@@ -105,41 +105,46 @@ contains
     
   staggerLocList(1) = ESMF_STAGGERLOC_CENTER
   staggerLocList(2) = ESMF_STAGGERLOC_CORNER
-    sideA = ESMF_GridCreateMosaic(filename=mosaicA, &
-       staggerLocList= staggerLocList, &
-       coordTypeKind = ESMF_TYPEKIND_R8, &
-       tileFilePath='./data/', rc=localrc)
+   ! sideA = ESMF_GridCreateMosaic(filename=mosaicA, &
+   !    staggerLocList= staggerLocList, &
+   !    coordTypeKind = ESMF_TYPEKIND_R8, &
+   !    tileFilePath='./data/', rc=localrc)
     !call ESMF_GridWriteVTK(sideA,staggerloc=ESMF_STAGGERLOC_CORNER, &
        !filename="ATM_grid_in.vtk", &
        !rc=localrc) 
-    sideB = ESMF_GridCreateMosaic(filename=mosaicB, &
-       staggerLocList= staggerLocList, &
-       coordTypeKind = ESMF_TYPEKIND_R8, &
-       tileFilePath='./data/', rc=localrc)
+   ! sideB = ESMF_GridCreateMosaic(filename=mosaicB, &
+   !    staggerLocList= staggerLocList, &
+   !    coordTypeKind = ESMF_TYPEKIND_R8, &
+   !    tileFilePath='./data/', rc=localrc)
     !call ESMF_GridWriteVTK(sideB,staggerloc=ESMF_STAGGERLOC_CORNER, &
        !filename="OCN_grid_in.vtk", &
        !rc=localrc)
-    
-    
-    if (ESMF_LogFoundError(localrc, &
-      ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rcToReturn=rc)) return
+   ! if (ESMF_LogFoundError(localrc, &
+   !   ESMF_ERR_PASSTHRU, &
+   !   ESMF_CONTEXT, rcToReturn=rc)) return
       
    ! up, down
-    print *, "Creating XGrid from Input Mosaics"
-    grid = ESMF_XGridCreate(sideAGrid=(/sideA/), &
-      sideBGrid=(/sideB/), &
-      storeOverlay = .true., &
-      rc=localrc)
-    if (ESMF_LogFoundError(localrc, &
-      ESMF_ERR_PASSTHRU, &
-      ESMF_CONTEXT, rcToReturn=rc)) return
+   ! print *, "Creating XGrid from Input Mosaics"
+   ! grid = ESMF_XGridCreate(sideAGrid=sideA, &
+   !   sideBGrid=sideB, &
+   !   storeOverlay = .true., &
+   !   rc=localrc)
+   ! if (ESMF_LogFoundError(localrc, &
+   !   ESMF_ERR_PASSTHRU, &
+   !   ESMF_CONTEXT, rcToReturn=rc)) return
       
     ! record the number of cells
-      call ESMF_GridGet(grid=sideA, nodeCount=sideACount, rc=localrc)
-      call ESMF_GridGet(grid=sideB, nodeCount=sideBCount, rc=localrc)
-      call ESMF_XGridGet(xgrid=xgrid, elementCount=XgridCount, rc=localrc)
-      print *, "Num cells A/B/X: ",sideACount,"/",sideBCount,"/",XgridCount
+    !  call ESMF_GridGet(grid=sideA, nodeCount=sideACount, rc=localrc)
+    !  call ESMF_GridGet(grid=sideB, nodeCount=sideBCount, rc=localrc)
+    !  call ESMF_XGridGet(xgrid=xgrid, elementCount=XgridCount, rc=localrc)
+    !  print *, "Num cells A/B/X: ",sideACount,"/",sideBCount,"/",XgridCount
+    
+        ! partially overlap
+    xgrid = ESMF_XGridCreate(sideAGrid=(/make_grid_sph(4,4,1.,1.,0.,0.,area_adj=0.95, rc=localrc), &
+                               make_grid_sph(4,4,0.6,1.,3.5,3.5,area_adj=0.95, rc=localrc)/), &
+      sideBGrid=(/make_grid_sph(8,8,1.,1.,0.,0.,area_adj=0.95, rc=localrc)/), &
+      storeOverlay = .true., &
+      rc=localrc)
 
     call flux_exchange_sph(xgrid, area_adj=0.95, rc=localrc)
     if (ESMF_LogFoundError(localrc, &
