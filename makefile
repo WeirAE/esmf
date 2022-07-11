@@ -147,6 +147,9 @@ endif
 	-@echo "ESMF_DEFER_LIB_BUILD:   $(ESMF_DEFER_LIB_BUILD)"
 	-@echo "ESMF_SHARED_LIB_BUILD:  $(ESMF_SHARED_LIB_BUILD)"
 	-@echo "ESMF_TRACE_LIB_BUILD:   $(ESMF_TRACE_LIB_BUILD)"
+ifeq ($(ESMF_TRACE_LIB_BUILD),ON)
+	-@echo "ESMF_TRACE_BUILD_SHARED:$(ESMF_TRACE_BUILD_SHARED)"
+endif
 	-@echo "ESMF_TESTEXHAUSTIVE:    $(ESMF_TESTEXHAUSTIVE)"
 	-@echo "ESMF_TESTCOMPTUNNEL:    $(ESMF_TESTCOMPTUNNEL)"
 	-@echo "ESMF_TESTWITHTHREADS:   $(ESMF_TESTWITHTHREADS)"
@@ -505,7 +508,7 @@ endif
 	-@echo "# Internal ESMF variables, do NOT depend on these!" >> $(MKINFO)
 	-@echo "" >> $(MKINFO)
 	-@echo "ESMF_INTERNAL_DIR=$(ESMF_DIR)" >> $(MKINFO)
-	-@echo "ESMF_INTERNAL_MPIRUN=$(ESMF_MPIRUN)" >> $(MKINFO)
+	-@echo "ESMF_INTERNAL_MPIRUN=\"$(ESMF_MPIRUN)\"" >> $(MKINFO)
 	-@echo "" >> $(MKINFO)
 	-@echo "#" >> $(MKINFO)
 	-@echo "# !!! The following options were used on this ESMF build !!!" >> $(MKINFO)

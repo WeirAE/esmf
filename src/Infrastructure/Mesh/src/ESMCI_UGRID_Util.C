@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2021, University Corporation for Atmospheric Research,
+// Copyright 2002-2022, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -353,7 +353,7 @@ void get_elementConn_info_from_UGRID_file(int pioSystemDesc, int pioFileDesc, ch
 
   // Init elementConn decomp
   int ec_iodesc;
-  int gdimlen2D[2]={elementCount,max_num_conns_per_elem};
+  int gdimlen2D[2]={(int)elementCount,(int)max_num_conns_per_elem};
   piorc = PIOc_InitDecomp(pioSystemDesc, PIO_INT, 
                           2, gdimlen2D, totNumRectElementConn,
                           ec_offsets, &ec_iodesc, 
@@ -363,6 +363,9 @@ void get_elementConn_info_from_UGRID_file(int pioSystemDesc, int pioFileDesc, ch
   
   // Get rid of offsets
   delete [] ec_offsets;
+  piorc = PIOc_setframe(pioFileDesc, elementConn_id, -1);
+  if (!CHECKPIOERROR(piorc, std::string("Error setting frame for variable elementConn ") + filename,
+                     ESMF_RC_FILE_OPEN, localrc)) throw localrc;
   
   
   // Get rectElementConn  
@@ -663,6 +666,9 @@ void get_coords_from_UGRID_file(int pioSystemDesc, int pioFileDesc, char *filena
   
   // Loop through dimensions getting coords from each variable in file
   for (int d=0; d<dim; d++) {
+    piorc = PIOc_setframe(pioFileDesc, coordVar_ids[d], -1);
+    if (!CHECKPIOERROR(piorc, std::string("Error setting frame for coordinate variable ") + filename,
+                       ESMF_RC_FILE_OPEN, localrc)) throw localrc;
     
     // Get coords
     piorc = PIOc_read_darray(pioFileDesc, coordVar_ids[d], iodesc, num_ids, onedim_coords);
@@ -1075,6 +1081,9 @@ void get_mask_from_UGRID_file(int pioSystemDesc, int pioFileDesc, char *filename
   // Allocate space for mask variable
   double *mask_vals=new double[num_ids];
   
+  piorc = PIOc_setframe(pioFileDesc, mask_id, -1);
+  if (!CHECKPIOERROR(piorc, std::string("Error setting frame for mask variable ") + filename,
+                     ESMF_RC_FILE_OPEN, localrc)) throw localrc;;
   // Get mask from file
   piorc = PIOc_read_darray(pioFileDesc, mask_id, em_iodesc, num_ids, mask_vals);
   if (!CHECKPIOERROR(piorc, std::string("Error reading mask variable from file ") + filename,
