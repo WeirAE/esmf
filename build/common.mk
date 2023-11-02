@@ -215,6 +215,10 @@ ifndef ESMF_TRACE_LIB_BUILD
 export ESMF_TRACE_LIB_BUILD = default
 endif
 
+ifndef ESMF_TRACE_PRELOAD_LINKED
+export ESMF_TRACE_PRELOAD_LINKED = default
+endif
+
 ifndef ESMF_FORTRANSYMBOLS
 export ESMF_FORTRANSYMBOLS = default
 endif
@@ -443,6 +447,10 @@ endif
 
 ifneq ($(ESMF_TRACE_LIB_BUILD),OFF)
 export ESMF_TRACE_LIB_BUILD = ON
+endif
+
+ifneq ($(ESMF_TRACE_PRELOAD_LINKED),ON)
+export ESMF_TRACE_PRELOAD_LINKED = OFF
 endif
 
 ifneq ($(ESMF_TESTCOMPTUNNEL),OFF)
@@ -796,11 +804,10 @@ endif
 
 # - F90COMPILER
 ifneq ($(origin ESMF_F90COMPILER), environment)
-ifeq ($(origin ESMF_F90), environment)
-ESMF_F90COMPILER = $(ESMF_F90)
-else
 ESMF_F90COMPILER = $(ESMF_F90COMPILERDEFAULT)
 ESMF_F90COMPILERDEFAULT = $(ESMF_F90DEFAULT)
+ifeq ($(origin ESMF_F90), environment)
+ESMF_F90COMPILERDEFAULT = $(ESMF_F90)
 endif
 endif
 ifneq ($(origin ESMF_F90IMOD), environment)
@@ -850,11 +857,10 @@ ESMF_F90COMPILECPPFLAGS   += $(ESMF_FPPFLAGS)
 
 # - CXXCOMPILER
 ifneq ($(origin ESMF_CXXCOMPILER), environment)
-ifeq ($(origin ESMF_CXX), environment)
-ESMF_CXXCOMPILER = $(ESMF_CXX)
-else
 ESMF_CXXCOMPILER = $(ESMF_CXXCOMPILERDEFAULT)
 ESMF_CXXCOMPILERDEFAULT = $(ESMF_CXXDEFAULT)
+ifeq ($(origin ESMF_CXX), environment)
+ESMF_CXXCOMPILERDEFAULT = $(ESMF_CXX)
 endif
 endif
 ifneq ($(origin ESMF_CXXOPTFLAG), environment)
@@ -895,11 +901,10 @@ ESMF_CXXCOMPILECPPFLAGS   += $(ESMF_CPPFLAGS) -D__SDIR__='"$(LOCDIR)"'
 
 # - CCOMPILER
 ifneq ($(origin ESMF_CCOMPILER), environment)
-ifeq ($(origin ESMF_C), environment)
-ESMF_CCOMPILER = $(ESMF_C)
-else
 ESMF_CCOMPILER = $(ESMF_CCOMPILERDEFAULT)
 ESMF_CCOMPILERDEFAULT = $(ESMF_CDEFAULT)
+ifeq ($(origin ESMF_C), environment)
+ESMF_CCOMPILERDEFAULT = $(ESMF_C)
 endif
 endif
 ifneq ($(origin ESMF_COPTFLAG), environment)
@@ -940,11 +945,10 @@ ESMF_CCOMPILECPPFLAGS   += $(ESMF_CPPFLAGS) -D__SDIR__='"$(LOCDIR)"'
 
 # - F90LINKER
 ifneq ($(origin ESMF_F90LINKER), environment)
-ifeq ($(origin ESMF_F90), environment)
-ESMF_F90LINKER = $(ESMF_F90)
-else
 ESMF_F90LINKER = $(ESMF_F90LINKERDEFAULT)
 ESMF_F90LINKERDEFAULT = $(ESMF_F90DEFAULT)
+ifeq ($(origin ESMF_F90), environment)
+ESMF_F90LINKERDEFAULT = $(ESMF_F90)
 endif
 endif
 # - make sure environment variable gets prepended _once_
@@ -991,14 +995,14 @@ ESMF_F90LINKLIBS = $(ESMF_F90LINKLIBS_ENV)
 endif
 ESMF_F90LINKLIBS     +=
 ESMF_F90ESMFLINKLIBS += -lesmf $(ESMF_F90LINKLIBS)
+ESMF_F90ESMFPRELOADLINKLIBS += -lesmf $(ESMF_TRACE_DYNAMICLINKLIBS) $(ESMF_F90LINKLIBS)
 
 # - CXXLINKER
 ifneq ($(origin ESMF_CXXLINKER), environment)
-ifeq ($(origin ESMF_CXX), environment)
-ESMF_CXXLINKER = $(ESMF_CXX)
-else
 ESMF_CXXLINKER = $(ESMF_CXXLINKERDEFAULT)
 ESMF_CXXLINKERDEFAULT = $(ESMF_CXXDEFAULT)
+ifeq ($(origin ESMF_CXX), environment)
+ESMF_CXXLINKERDEFAULT = $(ESMF_CXX)
 endif
 endif
 # - make sure environment variable gets prepended _once_
@@ -1048,11 +1052,10 @@ ESMF_CXXESMFLINKLIBS += -lesmf $(ESMF_CXXLINKLIBS)
 
 # - CLINKER
 ifneq ($(origin ESMF_CLINKER), environment)
-ifeq ($(origin ESMF_C), environment)
-ESMF_CLINKER = $(ESMF_C)
-else
 ESMF_CLINKER = $(ESMF_CLINKERDEFAULT)
 ESMF_CLINKERDEFAULT = $(ESMF_CDEFAULT)
+ifeq ($(origin ESMF_C), environment)
+ESMF_CLINKERDEFAULT = $(ESMF_C)
 endif
 endif
 # - make sure environment variable gets prepended _once_
@@ -1801,6 +1804,38 @@ endif
 endif
 
 #-------------------------------------------------------------------------------
+# NVML
+#-------------------------------------------------------------------------------
+ifeq ($(ESMF_NVML),ON)
+ESMF_NVML = standard
+endif
+ifeq ($(ESMF_NVML),standard)
+ifneq ($(origin ESMF_NVML_LIBS), environment)
+ESMF_NVML_LIBS = -lnvidia-ml
+endif
+endif
+
+ifdef ESMF_NVML
+ESMF_CPPFLAGS                += -DESMF_NVML=1
+ifdef ESMF_NVML_INCLUDE
+ESMF_CXXCOMPILEPATHSTHIRD    += -I$(ESMF_NVML_INCLUDE)
+ESMF_F90COMPILEPATHSTHIRD    += -I$(ESMF_NVML_INCLUDE)
+endif
+ifdef ESMF_NVML_LIBS
+ESMF_CXXLINKLIBS          += $(ESMF_NVML_LIBS)
+ESMF_CXXLINKRPATHSTHIRD   += $(addprefix $(ESMF_CXXRPATHPREFIX),$(subst -L,,$(filter -L%,$(ESMF_NVML_LIBS))))
+ESMF_F90LINKLIBS          += $(ESMF_NVML_LIBS)
+ESMF_F90LINKRPATHSTHIRD   += $(addprefix $(ESMF_F90RPATHPREFIX),$(subst -L,,$(filter -L%,$(ESMF_NVML_LIBS))))
+endif
+ifdef ESMF_NVML_LIBPATH
+ESMF_CXXLINKPATHSTHIRD    += -L$(ESMF_NVML_LIBPATH)
+ESMF_F90LINKPATHSTHIRD    += -L$(ESMF_NVML_LIBPATH)
+ESMF_CXXLINKRPATHSTHIRD   += $(ESMF_CXXRPATHPREFIX)$(ESMF_NVML_LIBPATH)
+ESMF_F90LINKRPATHSTHIRD   += $(ESMF_F90RPATHPREFIX)$(ESMF_NVML_LIBPATH)
+endif
+endif
+
+#-------------------------------------------------------------------------------
 # Set the correct MPIRUN command with appropriate options
 #-------------------------------------------------------------------------------
 ESMF_MPIRUNCOMMAND  = $(shell $(ESMF_DIR)/scripts/mpirun.command $(ESMF_DIR)/scripts $(ESMF_MPIRUN))
@@ -1826,7 +1861,11 @@ ifeq ($(ESMF_OPENMP),OFF)
 ESMF_CPPFLAGS       += -DESMF_NO_OPENMP
 endif
 
-ifeq ($(ESMF_OPENMP),ON)
+ifeq ($(ESMF_OPENMP),OMP4)
+ESMF_CPPFLAGS       += -DESMF_OPENMP4
+endif
+
+ifneq ($(ESMF_OPENMP),OFF)
 ESMF_F90COMPILEOPTS += $(ESMF_OPENMP_F90COMPILEOPTS)
 ESMF_F90LINKOPTS    += $(ESMF_OPENMP_F90LINKOPTS)
 ESMF_CXXCOMPILEOPTS += $(ESMF_OPENMP_CXXCOMPILEOPTS)
@@ -1955,6 +1994,9 @@ ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/Grid/include
 ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/GridUtil/include
 ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/Route/include
 ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/Field/include
+ifeq ($(ESMF_COMM),mpiuni)
+ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/stubs/mpiuni
+endif
 ifeq ($(ESMF_PIO),internal)
 ESMF_INTERNALINCDIRS  += -I$(ESMF_BUILD)/src/Infrastructure/IO/PIO/ParallelIO/src/clib
 endif
@@ -1989,15 +2031,26 @@ ifeq ($(ESMF_TRACE_BUILD_SHARED),ON)
 ESMF_TRACE_LDPRELOAD := $(ESMF_LIBDIR)/libesmftrace_preload.$(ESMF_SL_SUFFIX)
 ESMF_PRELOADSCRIPT = $(ESMF_LIBDIR)/preload.sh
 
-ifneq ($(ESMF_OS),Darwin)
-ESMF_ENV_PRELOAD = LD_PRELOAD
+ESMF_SL_PRELOAD_LIBLINKER = $(ESMF_CXXCOMPILER)
+
+ifeq ($(ESMF_OS),Darwin)
+ESMF_ENV_PRELOAD          = DYLD_INSERT_LIBRARIES
+ESMF_ENV_PRELOAD_DELIMIT  = ':'
+ifeq ($(ESMF_COMM),openmpi)
+# make sure to link in the Fortran MPI bindings
+ESMF_SL_PRELOAD_LIBLINKER = $(ESMF_F90COMPILER)
+endif
 else
-ESMF_ENV_PRELOAD = DYLD_INSERT_LIBRARIES
+ESMF_ENV_PRELOAD          = LD_PRELOAD
+ESMF_ENV_PRELOAD_DELIMIT  = ' '
 endif
 
 # MPI implementations do not pick up LD_PRELOAD
 # so we pass a small script to each MPI task
 ifneq (,$(findstring mpich,$(ESMF_COMM)))
+ESMF_PRELOAD_SH = $(ESMF_PRELOADSCRIPT)
+endif
+ifeq ($(ESMF_COMM),openmpi)
 ESMF_PRELOAD_SH = $(ESMF_PRELOADSCRIPT)
 endif
 ifeq ($(ESMF_COMM),mpi)
@@ -2006,14 +2059,23 @@ endif
 ifeq ($(ESMF_COMM),mpt)
 ESMF_PRELOAD_SH = $(ESMF_PRELOADSCRIPT)
 endif
+ifneq (,$(findstring srun,$(ESMF_MPIRUN)))
+ESMF_PRELOAD_SH = $(ESMF_PRELOADSCRIPT)
+endif
 
 endif
 
 build_preload_script:
 	-@echo "#!/bin/sh" > $(ESMF_PRELOADDIR)/preload.sh
 	-@echo "# Script to preload ESMF dynamic trace library" >> $(ESMF_PRELOADDIR)/preload.sh
-	-@echo 'env LD_PRELOAD="$$LD_PRELOAD $(ESMF_PRELOADDIR)/libesmftrace_preload.$(ESMF_SL_SUFFIX)" $$*' >> $(ESMF_PRELOADDIR)/preload.sh
+	-@echo 'if [ "$$$(ESMF_ENV_PRELOAD)" != "" ]; then' >> $(ESMF_PRELOADDIR)/preload.sh
+	-@echo 'env $(ESMF_ENV_PRELOAD)="$$$(ESMF_ENV_PRELOAD)$(ESMF_ENV_PRELOAD_DELIMIT)$(ESMF_PRELOADDIR)/libesmftrace_preload.$(ESMF_SL_SUFFIX)" $$*' >> $(ESMF_PRELOADDIR)/preload.sh
+	-@echo 'else' >> $(ESMF_PRELOADDIR)/preload.sh
+	-@echo 'env $(ESMF_ENV_PRELOAD)="$(ESMF_PRELOADDIR)/libesmftrace_preload.$(ESMF_SL_SUFFIX)" $$*' >> $(ESMF_PRELOADDIR)/preload.sh
+	-@echo 'fi' >> $(ESMF_PRELOADDIR)/preload.sh
 	chmod 755 $(ESMF_PRELOADDIR)/preload.sh
+
+ESMF_TRACE_DYNAMICLINKLIBS := -lesmftrace_preload
 
 ESMF_TRACE_STATICLINKLIBS := -lesmftrace_static
 
@@ -2581,6 +2643,10 @@ else ifeq ($(APPS_MAINLANGUAGE),C++)
 $(ESMF_APPSDIR)/% : $(addprefix $(ESMF_LOCOBJDIR)/,$(APPS_OBJ)) $(ESMFLIB)
 	$(MAKE) chkdir_apps
 	$(ESMF_CXXLINKER) $(ESMF_EXE_CXXLINKOPTS) $(ESMF_CXXLINKOPTS) $(ESMF_CXXLINKPATHS) $(ESMF_CXXLINKRPATHS) $(ESMF_EXEOUT_OPTION) $(addprefix $(ESMF_LOCOBJDIR)/,$(APPS_OBJ)) $(ESMF_CXXESMFLINKLIBS)
+else ifeq ($(APPS_MAINLANGUAGE),script)
+$(ESMF_APPSDIR)/% : $(APPS_OBJ)
+	$(MAKE) chkdir_apps
+	cp -f $(APPS_OBJ) $@
 else
 $(ESMF_APPSDIR)/% : $(addprefix $(ESMF_LOCOBJDIR)/,$(APPS_OBJ)) $(ESMFLIB)
 	$(MAKE) chkdir_apps
@@ -3845,7 +3911,7 @@ endif
 #-------------------------------------------------------------------------------
 # Suffixes
 #-------------------------------------------------------------------------------
-.SUFFIXES: .f .f90 .F .F90 .cppF90 .C .$(ESMF_SL_SUFFIX) .$(ESMF_LIB_SUFFIX) .cpp .cc .c .r .rm
+.SUFFIXES: .f .f90 .F .F90 .cppF90 .C .$(ESMF_SL_SUFFIX) .$(ESMF_LIB_SUFFIX) .cpp .cc .c .r .rm .sh
 
 #-------------------------------------------------------------------------------
 #  Compile rules for F90, C++, and c files for both to .o and .a files

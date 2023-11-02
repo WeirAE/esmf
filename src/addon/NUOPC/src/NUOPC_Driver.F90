@@ -116,6 +116,9 @@ module NUOPC_Driver
 
   ! Generic methods
   public NUOPC_DriverAddComp
+#if defined (__INTEL_LLVM_COMPILER) || (__NVCOMPILER)
+  public NUOPC_DriverAddGridCompPtr !TODO: remove once compliers are fixed
+#endif
   public NUOPC_DriverAddRunElement
   public NUOPC_DriverEgestRunSequence
   public NUOPC_DriverGet
@@ -144,6 +147,11 @@ module NUOPC_Driver
     module procedure NUOPC_DriverGetCplComp
     module procedure NUOPC_DriverGetAllGridComp
     module procedure NUOPC_DriverGetAllCplComp
+  end interface
+  !---------------------------------------------
+  interface NUOPC_DriverIngestRunSequence
+    module procedure NUOPC_DriverIngestRunSequenceFF
+    module procedure NUOPC_DriverIngestRunSequenceHC
   end interface
 
   ! Internal drived types
@@ -1301,6 +1309,9 @@ module NUOPC_Driver
     allocate(mustAttributeUpdate(0:is%wrap%modelCount))
     mustAttributeUpdate = .false.
 
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionEnter("Init-Sweep-1")
+    endif
     ! modelComps
     call loopModelCompsS(driver, phaseString="IPDv00p1", &
       mustAttributeUpdate=mustAttributeUpdate, rc=rc)
@@ -1352,7 +1363,13 @@ module NUOPC_Driver
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) &
       return  ! bail out
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionExit("Init-Sweep-1")
+    endif
 
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionEnter("Init-Sweep-2")
+    endif
     ! modelComps (new for IPDv05)
     call loopModelCompsS(driver, phaseString="IPDv05p2", &
       mustAttributeUpdate=mustAttributeUpdate, rc=rc)
@@ -1413,8 +1430,14 @@ module NUOPC_Driver
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) &
       return  ! bail out
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionExit("Init-Sweep-2")
+    endif
 
     ! modelComps
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionEnter("Init-Sweep-3")
+    endif
     call loopModelCompsS(driver, phaseString="IPDv01p2", &
       mustAttributeUpdate=mustAttributeUpdate, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1480,6 +1503,9 @@ module NUOPC_Driver
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) &
       return  ! bail out
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionExit("Init-Sweep-3")
+    endif
 
     ! Before returning the driver must clean up its own importState, which
     ! may have Fields advertised that do not have a ConsumerConnection set.
@@ -1489,6 +1515,9 @@ module NUOPC_Driver
     ! they should not remain in the parent importState. Leaving them in the
     ! parent State, while not connected with a child anylonger, would lead to
     ! issues during GeomTransfer.
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionEnter("rmFieldsWoConsumerConnection")
+    endif
     stateIsCreated = ESMF_StateIsCreated(importState, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) &
@@ -1498,6 +1527,9 @@ module NUOPC_Driver
       call rmFieldsWoConsumerConnection(importState, name=name, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+    endif
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionExit("rmFieldsWoConsumerConnection")
     endif
 
     ! SPECIALIZE by calling into optional attached method
@@ -1939,6 +1971,9 @@ module NUOPC_Driver
     mustAttributeUpdate = .false.
 
     ! modelComps
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionEnter("Init-Sweep-4")
+    endif
     call loopModelCompsS(driver, phaseString="IPDv00p2", &
       mustAttributeUpdate=mustAttributeUpdate, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1997,8 +2032,14 @@ module NUOPC_Driver
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) &
       return  ! bail out
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionExit("Init-Sweep-4")
+    endif
 
     ! modelComps
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionEnter("Init-Sweep-5")
+    endif
     call loopModelCompsS(driver, phaseString="IPDv03p4", &
       mustAttributeUpdate=mustAttributeUpdate, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -2042,7 +2083,13 @@ module NUOPC_Driver
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) &
       return  ! bail out
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionExit("Init-Sweep-5")
+    endif
 
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionEnter("Init-Sweep-6")
+    endif
     ! modelComps
     call loopModelCompsS(driver, phaseString="IPDv03p5", &
       mustAttributeUpdate=mustAttributeUpdate, rc=rc)
@@ -2119,7 +2166,13 @@ module NUOPC_Driver
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) &
       return  ! bail out
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionExit("Init-Sweep-6")
+    endif
 
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionEnter("Init-Sweep-7")
+    endif
     ! modelComps
     call loopModelCompsS(driver, phaseString="IPDv00p3", &
       mustAttributeUpdate=mustAttributeUpdate, rc=rc)
@@ -2158,6 +2211,9 @@ module NUOPC_Driver
       return  ! bail out
     ! connectorComps
     ! nothing to do
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionExit("Init-Sweep-7")
+    endif
 
     ! SPECIALIZE by calling into optional attached method
     ! after children realize
@@ -2612,6 +2668,9 @@ module NUOPC_Driver
     allocate(mustAttributeUpdate(0:is%wrap%modelCount))
     mustAttributeUpdate = .false.
 
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionEnter("Init-Sweep-8")
+    endif
     ! modelComps
     if (is%wrap%firstTimeDataInit) then
       ! IPDv < 02 data initialize phase only called once
@@ -2665,6 +2724,10 @@ module NUOPC_Driver
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) &
       return  ! bail out
+
+    if (btest(profiling,2)) then
+      call ESMF_TraceRegionExit("Init-Sweep-8")
+    endif
 
     ! determine whether to enter initialize data resolution loop
     call NUOPC_CompAttributeGet(driver, name="InitializeDataResolution", &
@@ -4459,6 +4522,68 @@ module NUOPC_Driver
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
 
+#if defined (__INTEL_LLVM_COMPILER) || defined (__NVCOMPILER)
+  !-----------------------------------------------------------------------------
+!BOPI
+! !IROUTINE: NUOPC_DriverAddComp - Add a GridComp child to a Driver using procedure pointers
+!
+! !INTERFACE:
+  ! Private name; call using NUOPC_DriverAddComp()
+  recursive subroutine NUOPC_DriverAddGridCompPtr(driver, compLabel, &
+    compSetServicesRoutine, compSetVMRoutine, petList, devList, info, config, &
+    comp, rc)
+! !ARGUMENTS:
+    type(ESMF_GridComp)                               :: driver
+    character(len=*),    intent(in)                   :: compLabel
+    abstract interface
+      recursive subroutine SetServicesRoutine(gridcomp, rc)
+        use ESMF
+        implicit none
+        type(ESMF_GridComp)        :: gridcomp ! must not be optional
+        integer, intent(out)       :: rc       ! must not be optional
+      end subroutine
+      recursive subroutine SetVMRoutine(gridcomp, rc)
+        use ESMF
+        implicit none
+        type(ESMF_GridComp)        :: gridcomp ! must not be optional
+        integer, intent(out)       :: rc       ! must not be optional
+      end subroutine
+    end interface
+    procedure(SetServicesRoutine),  pointer           :: compSetServicesRoutine
+    procedure(SetVMRoutine),        pointer, optional :: compSetVMRoutine
+    integer,             intent(in),         optional :: petList(:)
+    integer,             intent(in),         optional :: devList(:)
+    type(ESMF_Info),     intent(in),         optional :: info
+    type(ESMF_Config),   intent(in),         optional :: config
+    type(ESMF_GridComp), intent(out),        optional :: comp
+    integer,             intent(out),        optional :: rc
+!
+! !DESCRIPTION:
+! Same as {\tt NUOPC\_DriverAddGridComp()}, but with dummy procedure arguments
+! have pointer attributes. This is a work-around of IFX compiler needed by ESMX.
+!TODO: Remove this interface once IFX no longer needs it as a work-around.
+!EOPI
+  !-----------------------------------------------------------------------------
+    ! local variables
+    integer                         :: localrc
+    character(ESMF_MAXSTR)          :: name
+
+    call NUOPC_CompGet(driver, name=name, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+      return  ! bail out
+
+    call NUOPC_DriverAddGridComp(driver, compLabel, &
+      compSetServicesRoutine, compSetVMRoutine, petList, devList, info, &
+      config, comp, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+      return  ! bail out
+
+  end subroutine
+  !-----------------------------------------------------------------------------
+#endif
+
   !-----------------------------------------------------------------------------
 !BOP
 ! !IROUTINE: NUOPC_DriverAddComp - Add a GridComp child to a Driver
@@ -4466,10 +4591,12 @@ module NUOPC_Driver
 ! !INTERFACE:
   ! Private name; call using NUOPC_DriverAddComp()
   recursive subroutine NUOPC_DriverAddGridComp(driver, compLabel, &
-    compSetServicesRoutine, compSetVMRoutine, petList, info, config, comp, rc)
+    compSetServicesRoutine, compSetVMRoutine, petList, devList, info, config, &
+    comp, rc)
 ! !ARGUMENTS:
-    type(ESMF_GridComp)                        :: driver
-    character(len=*),    intent(in)            :: compLabel
+    type(ESMF_GridComp)                               :: driver
+    character(len=*),    intent(in)                   :: compLabel
+#if defined (__NVCOMPILER) || defined (__PGI) || defined (ESMF_COMPILER_AOCC)
     interface
       recursive subroutine compSetServicesRoutine(gridcomp, rc)
         use ESMF
@@ -4486,12 +4613,31 @@ module NUOPC_Driver
         integer, intent(out)       :: rc       ! must not be optional
       end subroutine
     end interface
-    optional                                   :: compSetVMRoutine
-    integer,             intent(in),  optional :: petList(:)
-    type(ESMF_Info),     intent(in),  optional :: info
-    type(ESMF_Config),   intent(in),  optional :: config
-    type(ESMF_GridComp), intent(out), optional :: comp
-    integer,             intent(out), optional :: rc
+    optional                                          :: compSetVMRoutine
+#else
+    abstract interface
+      recursive subroutine SetServicesRoutine(gridcomp, rc)
+        use ESMF
+        implicit none
+        type(ESMF_GridComp)        :: gridcomp ! must not be optional
+        integer, intent(out)       :: rc       ! must not be optional
+      end subroutine
+      recursive subroutine SetVMRoutine(gridcomp, rc)
+        use ESMF
+        implicit none
+        type(ESMF_GridComp)        :: gridcomp ! must not be optional
+        integer, intent(out)       :: rc       ! must not be optional
+      end subroutine
+    end interface
+    procedure(SetServicesRoutine)                     :: compSetServicesRoutine
+    procedure(SetVMRoutine),                 optional :: compSetVMRoutine
+#endif
+    integer,             intent(in),         optional :: petList(:)
+    integer,             intent(in),         optional :: devList(:)
+    type(ESMF_Info),     intent(in),         optional :: info
+    type(ESMF_Config),   intent(in),         optional :: config
+    type(ESMF_GridComp), intent(out),        optional :: comp
+    integer,             intent(out),        optional :: rc
 !
 ! !DESCRIPTION:
 ! Create and add a GridComp (i.e. Model, Mediator, or Driver) as a child
@@ -4562,7 +4708,7 @@ module NUOPC_Driver
     i = is%wrap%modelCount
     cmEntry%wrap%label = trim(compLabel)
     cmEntry%wrap%component = ESMF_GridCompCreate(name=trim(compLabel), &
-      config=config, petList=petList, rc=localrc)
+      config=config, petList=petList, devList=devList, rc=localrc)
     if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
       return  ! bail out
@@ -4660,12 +4806,13 @@ module NUOPC_Driver
 ! !INTERFACE:
   ! Private name; call using NUOPC_DriverAddComp()
   recursive subroutine NUOPC_DriverAddGridCompSO(driver, compLabel, &
-    sharedObj, petList, info, config, comp, rc)
+    sharedObj, petList, devList, info, config, comp, rc)
 ! !ARGUMENTS:
     type(ESMF_GridComp)                        :: driver
     character(len=*),    intent(in)            :: compLabel
     character(len=*),    intent(in),  optional :: sharedObj
     integer,             intent(in),  optional :: petList(:)
+    integer,             intent(in),  optional :: devList(:)
     type(ESMF_Info),     intent(in),  optional :: info
     type(ESMF_Config),   intent(in),  optional :: config
     type(ESMF_GridComp), intent(out), optional :: comp
@@ -4737,7 +4884,7 @@ module NUOPC_Driver
     i = is%wrap%modelCount
     cmEntry%wrap%label = trim(compLabel)
     cmEntry%wrap%component = ESMF_GridCompCreate(name=trim(compLabel), &
-      config=config, petList=petList, rc=localrc)
+      config=config, petList=petList, devList=devList, rc=localrc)
     if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
       return  ! bail out
@@ -4833,12 +4980,13 @@ module NUOPC_Driver
 ! !INTERFACE:
   ! Private name; call using NUOPC_DriverAddComp()
   recursive subroutine NUOPC_DriverAddCplComp(driver, srcCompLabel, &
-    dstCompLabel, compSetServicesRoutine, compSetVMRoutine, petList, info, &
-    config, comp, rc)
+    dstCompLabel, compSetServicesRoutine, compSetVMRoutine, petList, devList, &
+    info, config, comp, rc)
 ! !ARGUMENTS:
-    type(ESMF_GridComp)                        :: driver
-    character(len=*),    intent(in)            :: srcCompLabel
-    character(len=*),    intent(in)            :: dstCompLabel
+    type(ESMF_GridComp)                               :: driver
+    character(len=*),    intent(in)                   :: srcCompLabel
+    character(len=*),    intent(in)                   :: dstCompLabel
+#if defined (__NVCOMPILER) || defined (__PGI) || defined (ESMF_COMPILER_AOCC)
     interface
       recursive subroutine compSetServicesRoutine(cplcomp, rc)
         use ESMF
@@ -4855,12 +5003,31 @@ module NUOPC_Driver
         integer, intent(out)       :: rc       ! must not be optional
       end subroutine
     end interface
-    optional                                   :: compSetVMRoutine
-    integer, target,     intent(in),  optional :: petList(:)
-    type(ESMF_Info),     intent(in),  optional :: info
-    type(ESMF_Config),   intent(in),  optional :: config
-    type(ESMF_CplComp),  intent(out), optional :: comp
-    integer,             intent(out), optional :: rc
+    optional                                          :: compSetVMRoutine
+#else
+    abstract interface
+      recursive subroutine SetServicesRoutine(cplcomp, rc)
+        use ESMF
+        implicit none
+        type(ESMF_CplComp)         :: cplcomp  ! must not be optional
+        integer, intent(out)       :: rc       ! must not be optional
+      end subroutine
+      recursive subroutine SetVMRoutine(cplcomp, rc)
+        use ESMF
+        implicit none
+        type(ESMF_CplComp)         :: cplcomp  ! must not be optional
+        integer, intent(out)       :: rc       ! must not be optional
+      end subroutine
+    end interface
+    procedure(SetServicesRoutine)                     :: compSetServicesRoutine
+    procedure(SetVMRoutine),                 optional :: compSetVMRoutine
+#endif
+    integer, target,     intent(in),         optional :: petList(:)
+    integer, target,     intent(in),         optional :: devList(:)
+    type(ESMF_Info),     intent(in),         optional :: info
+    type(ESMF_Config),   intent(in),         optional :: config
+    type(ESMF_CplComp),  intent(out),        optional :: comp
+    integer,             intent(out),        optional :: rc
 !
 ! !DESCRIPTION:
 ! Create and add a CplComp (i.e. Connector) as a child component to a Driver.
@@ -4997,7 +5164,7 @@ module NUOPC_Driver
       endif
       cmEntry%wrap%connector = ESMF_CplCompCreate(&
         name=trim(cmEntry%wrap%label), petList=connectorPetList, &
-        config=config, rc=localrc)
+        devList=devList, config=config, rc=localrc)
       if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
         return  ! bail out
@@ -5013,7 +5180,8 @@ module NUOPC_Driver
           return  ! bail out
       endif
       cmEntry%wrap%connector = ESMF_CplCompCreate(&
-        name=trim(cmEntry%wrap%label), config=config, rc=localrc)
+        name=trim(cmEntry%wrap%label), devList=devList, config=config, &
+        rc=localrc)
       if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
         return  ! bail out
@@ -6116,7 +6284,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: NUOPC_DriverIngestRunSequence - Ingest the run sequence from FreeFormat
 !
 ! !INTERFACE:
-  recursive subroutine NUOPC_DriverIngestRunSequence(driver, freeFormat, &
+  ! Private name; call using NUOPC_DriverIngestRunSequence()
+  recursive subroutine NUOPC_DriverIngestRunSequenceFF(driver, freeFormat, &
     autoAddConnectors, rc)
 ! !ARGUMENTS:
     type(ESMF_GridComp)                           :: driver
@@ -6128,7 +6297,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! Ingest the run sequence from a FreeFormat object and replace the
 ! run sequence currently held by the driver. Every line in
 ! {\tt freeFormat} corresponds to either a component run sequence element, or
-! is part of a time loop or alarm block defintion.
+! is part of a time loop or alarm block defintion. Anything following a
+! '\#' character on a line is considered a comment, and ignored for the purpose
+! of ingesting run sequence elements.
 !
 ! {\bf Component run sequence elements} define the run method of a single
 ! component. The lines are interpreted sequentially, however, components
@@ -6335,7 +6506,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     call NUOPC_CompGet(driver, name=name, verbosity=verbosity, &
       profiling=profiling, rc=localrc)
     if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+      return  ! bail out
 
     ! query Component for the internal State
     nullify(is%wrap)
@@ -6361,14 +6533,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     topLoops = 0
     needDriverTopLoop = .false.
     do i=1, lineCount
-      call NUOPC_FreeFormatGetLine(freeFormat, line=i, tokenCount=tokenCount, &
-        rc=localrc)
+      call NUOPC_FreeFormatGetLine(freeFormat, line=i, commentChar="#", &
+        tokenCount=tokenCount, rc=localrc)
       if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
         return  ! bail out
       allocate(tokenList(tokenCount))
-      call NUOPC_FreeFormatGetLine(freeFormat, line=i, tokenList=tokenList, &
-        rc=localrc)
+      call NUOPC_FreeFormatGetLine(freeFormat, line=i, commentChar="#", &
+        tokenList=tokenList, rc=localrc)
       if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
         return  ! bail out
@@ -6586,20 +6758,21 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     slotHWM = 0
     zeroSkip = .false.
     do i=1, lineCount
-      call NUOPC_FreeFormatGetLine(freeFormatPtr, line=i, &
+      call NUOPC_FreeFormatGetLine(freeFormatPtr, line=i, commentChar="#", &
         tokenCount=tokenCount, rc=localrc)
       if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
         return  ! bail out
       if (allocated(tokenList)) deallocate(tokenList) ! for zeroSkip cycle case
       allocate(tokenList(tokenCount))
-      call NUOPC_FreeFormatGetLine(freeFormatPtr, line=i, tokenList=tokenList, &
-        rc=localrc)
+      call NUOPC_FreeFormatGetLine(freeFormatPtr, line=i, commentChar="#", &
+        tokenList=tokenList, rc=localrc)
       if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
         return  ! bail out
 
       ! process the configuration line
+      if (tokenCount == 0) cycle  ! ignore blank lines
       if ((tokenCount < 1) .or. (tokenCount > 4)) then
         call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
           msg="Configuration line incorrectly formatted.", &
@@ -6945,6 +7118,106 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
   end subroutine
   !-----------------------------------------------------------------------------
+
+  !-----------------------------------------------------------------------------
+!BOP
+! !IROUTINE: NUOPC_DriverIngestRunSequence - Ingest the run sequence from HConfig
+!
+! !INTERFACE:
+  ! Private name; call using NUOPC_DriverIngestRunSequence()
+  recursive subroutine NUOPC_DriverIngestRunSequenceHC(driver, hconfig, &
+    autoAddConnectors, rc)
+! !ARGUMENTS:
+    type(ESMF_GridComp)                           :: driver
+    type(ESMF_HConfig),     intent(in)            :: hconfig
+    logical,                intent(in),  optional :: autoAddConnectors
+    integer,                intent(out), optional :: rc
+!
+! !DESCRIPTION:
+! Ingest the run sequence from a HConfig object and replace the run sequence
+! currently held by the driver. The provided {\tt hconfig} must be a scalar,
+! or else an error is returned. The scalar is interpreted as a string, broken
+! into lines at the {\em newline} character. Each line is subsequently
+! interpreted according to the rules described under the FreeFormat version of
+! the {\tt NUOPC\_DriverIngestRunSequence()} interface.
+!
+! To preserve {\em newline} characters in run sequences expressed in YAML
+! {\em block} notation, it is important to use {\em literals} indicated by the
+! '|' character in YAML. For example:
+!
+! \begin{verbatim}
+! # A simple run sequence example as a YAML block literal
+! --- |
+!  @900:1800          # comments are ignored
+!    MED
+!    MED -> ATM       # any line can have a comment
+!    MED -> OCN
+!    ATM
+!    OCN
+!    ATM -> MED
+!    OCN -> MED
+!  @
+! \end{verbatim}
+!
+! Notice the leading {\em whitespace} character(s) on each line of the block
+! literal string. YAML requires at least one (1) leading {\em whitespace}
+! character for strings in block notation.
+!EOP
+  !-----------------------------------------------------------------------------
+    ! local variables
+    integer                         :: localrc
+    character(ESMF_MAXSTR)          :: name
+    integer                         :: verbosity, profiling
+    type(NUOPC_FreeFormat)          :: freeFormat
+    character(len=:), allocatable   :: string
+    character(ESMF_MAXSTR), pointer :: chopStringList(:)
+
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    ! query the component for info
+    call NUOPC_CompGet(driver, name=name, verbosity=verbosity, &
+      profiling=profiling, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+      return  ! bail out
+
+    ! interpret hconfig as a literal string
+    string = ESMF_HConfigAsString(hconfig, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+      return  ! bail out
+
+    ! chop the string into lines at each "newline" character
+    nullify(chopStringList)
+    call NUOPC_ChopString(string, chopChar=char(10), &
+      chopStringList=chopStringList, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+      return  ! bail out
+
+    ! prepare free format representation of the lines
+    freeFormat = NUOPC_FreeFormatCreate(stringList=chopStringList, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+      return  ! bail out
+    deallocate(chopStringList)
+
+    ! leverage the free format interface to ingest the run squence
+    call NUOPC_DriverIngestRunSequence(driver, freeFormat, autoAddConnectors, &
+      rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+      return  ! bail out
+
+    ! clean-up
+    call NUOPC_FreeFormatDestroy(freeFormat, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+      return  ! bail out
+
+  end subroutine
+  !-----------------------------------------------------------------------------
+
 
   !-----------------------------------------------------------------------------
 !BOP

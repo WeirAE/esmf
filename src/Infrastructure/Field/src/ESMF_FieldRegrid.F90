@@ -36,7 +36,7 @@ module ESMF_FieldRegridMod
   use ESMF_StaggerLocMod
   use ESMF_MeshMod
   use ESMF_RHandleMod
-  use ESMF_GeomBaseMod
+  use ESMF_GeomMod
   use ESMF_XGridGeomBaseMod
   use ESMF_RegridMod
   use ESMF_FieldMod
@@ -352,7 +352,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 #ifndef FRS_OLDWAY
 
-
+    
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_FieldRegridStoreNX"
@@ -368,6 +368,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                     polemethod, regridPoleNPnts, & 
                     lineType, &
                     normType, &
+                    vectorRegrid, & 
                     extrapMethod, &
                     extrapNumSrcPnts, &
                     extrapDistExponent, &
@@ -395,6 +396,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer,                        intent(in),    optional :: regridPoleNPnts
       type(ESMF_LineType_Flag),       intent(in),    optional :: lineType
       type(ESMF_NormType_Flag),       intent(in),    optional :: normType
+      logical,                        intent(in),    optional :: vectorRegrid
       type(ESMF_ExtrapMethod_Flag),   intent(in),    optional :: extrapMethod
       integer,                        intent(in),    optional :: extrapNumSrcPnts
       real(ESMF_KIND_R4),             intent(in),    optional :: extrapDistExponent
@@ -456,7 +458,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !              set how many levels to extrapolate. 
 !
 ! \item[8.1.0] Added argument {\tt checkFlag} to enable the user to turn on more
-!              expensive error checking during regrid weight calculation. 
+!              expensive error checking during regrid weight calculation.
+!
+! \item[8.6.0] Added argument {\tt vectorRegrid} to enable the user to turn on vector regridding. This
+!              functionality treats an undistributed dimension of the input Fields as the components of a vector and
+!              maps it through 3D Cartesian space to give more consistent results (especially near the pole) than
+!              just regridding the components individually. 
 !              
 ! \end{description}
 ! \end{itemize}
@@ -528,14 +535,27 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !           up a cell. Both of these quantities can influence how interpolation weights are calculated.
 !           As would be expected, this argument is only applicable when {\tt srcField} and {\tt dstField} are
 !           built on grids which lie on the surface of a sphere. Section~\ref{opt:lineType} shows a 
-!           list of valid options for this argument. If not specified, the default depends on the 
-!           regrid method. Section~\ref{opt:lineType} has the defaults by line type. Figure~\ref{line_type_support} shows
-!           which line types are supported for each regrid method as well as showing the default line type by regrid method.  
+!           list of valid options for this argument. Figure~\ref{line_type_support} shows
+!           which line types are supported for each regrid method as well as showing the default line type by regrid method.
+!           If not specified, defaults to {\tt ESMF\_LINETYPE\_CART} for non-conservative regrid methods, 
+!           and {\tt ESMF\_LINETYPE\_GREAT\_CIRCLE} for conservative methods.
+!
 !     \item [{[normType]}] 
 !           This argument controls the type of normalization used when generating conservative weights. This option
 !           only applies to weights generated with {\tt regridmethod=ESMF\_REGRIDMETHOD\_CONSERVE} or  {\tt regridmethod=ESMF\_REGRIDMETHOD\_CONSERVE\_2ND}
 !           Please see  Section~\ref{opt:normType} for a 
 !           list of valid options. If not specified {\tt normType} defaults to {\tt ESMF\_NORMTYPE\_DSTAREA}. 
+!     \item [{[vectorRegrid]}]
+!           If true, treat a single ungridded dimension in the source and destination Fields
+!           as the components of a vector. If true and there is more than one ungridded dimension in either
+!           the source or destination, then an error will be returned. Currently, only undistributed (vector) dimensions of
+!           size 2 are supported. In the vector dimension, the first entry is interpreted as the east component and the
+!           second as the north component.
+!           In addition, this functionality presently only
+!           works when both the source and destination Fields are build on a geometry (e.g. an ESMF Grid) with
+!           a spherical coordinate system (e.g. ESMF\_COORDSYS\_SPH\_DEG). We expect these restrictions to be loosened over
+!           time as new requirements come in from users. See section~\ref{sec::vectorRegrid} for further
+!           information on this functionality. If not specified, this argument defaults to false.
 !     \item [{[extrapMethod]}]
 !           The type of extrapolation. Please see Section~\ref{opt:extrapmethod} 
 !           for a list of valid options. If not specified, defaults to 
@@ -695,6 +715,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         integer :: localExtrapNumLevels
         integer :: localExtrapNumInputLevels        
         logical :: localCheckFlag
+        logical :: localVectorRegrid
         type(ESMF_PoleMethod_Flag):: localpolemethod
         integer              :: localRegridPoleNPnts
         logical :: hasStatusArray
@@ -708,7 +729,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         integer(ESMF_KIND_I4),       pointer :: tmp_indices(:,:)
         real(ESMF_KIND_R8),          pointer :: tmp_weights(:)
         real(ESMF_KIND_R8) :: beg_time, end_time
-
+        logical :: addOrigCoordsToPointList
+                  
         ! Debug Timing stuff
         ! call ESMF_VMWtime(beg_time)
         ! ESMF_METHOD_ENTER(localrc)
@@ -835,6 +857,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
            localNormType=ESMF_NORMTYPE_DSTAREA
         endif
 
+        ! Handle default vector regrid argument
+        localVectorRegrid=.false.
+        if (present(vectorRegrid)) then
+           localVectorRegrid=vectorRegrid
+        endif
+        
+
        ! Handle pole method
         if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
              (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
@@ -942,9 +971,17 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 
 
+
+
+
+        
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!!! Get information (e.g. meshes) from Fields needed for regridding !!!!
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        ! Decide if we should use original coordinates in PointLists created in this section
+        addOrigCoordsToPointList=.false.
+        if (localVectorRegrid) addOrigCoordsToPointList=.true.
 
         ! Init variables tracking if we are using a PointList
         srcUsingPointList=.false.
@@ -974,7 +1011,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                 ESMF_CONTEXT, rcToReturn=rc)) return
 
            ! Get dst PointList with points on Field location
-           call getPointListOnFieldLoc(dstField, dstMaskValues, &
+           call getPointListOnFieldLoc(dstField, dstMaskValues, addOrigCoordsToPointList, &
                 dstCreatedTmpPointList, dstPointlist, rc=localrc)
            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
                 ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1002,7 +1039,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                 ESMF_CONTEXT, rcToReturn=rc)) return
 
            ! Get dst PointList with points on Field location
-           call getPointListOnFieldLoc(dstField, dstMaskValues, &
+           call getPointListOnFieldLoc(dstField, dstMaskValues, addOrigCoordsToPointList, &
                 dstCreatedTmpPointList, dstPointlist, rc=localrc)
            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
                 ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1024,7 +1061,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         else if (lregridmethod .eq. ESMF_REGRIDMETHOD_NEAREST_STOD) then
 
            ! Get src PointList with points on Field location
-           call getPointListOnFieldLoc(srcField, srcMaskValues, &
+           call getPointListOnFieldLoc(srcField, srcMaskValues, addOrigCoordsToPointList, &
                 srcCreatedTmpPointList, srcPointlist, rc=localrc)
            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
                 ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1033,7 +1070,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
            srcUsingPointList=.true.
 
            ! Get dst PointList with points on Field location
-           call getPointListOnFieldLoc(dstField, dstMaskValues, &
+           call getPointListOnFieldLoc(dstField, dstMaskValues, addOrigCoordsToPointList, &
                 dstCreatedTmpPointList, dstPointlist, rc=localrc)
            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
                 ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1055,7 +1092,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         else if (lregridmethod .eq. ESMF_REGRIDMETHOD_NEAREST_DTOS) then
 
            ! Get src PointList with points on Field location
-           call getPointListOnFieldLoc(srcField, srcMaskValues, &
+           call getPointListOnFieldLoc(srcField, srcMaskValues, addOrigCoordsToPointList, &
                 srcCreatedTmpPointList, srcPointlist, rc=localrc)
            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
                 ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1064,7 +1101,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
            srcUsingPointList=.true.
 
            ! Get dst PointList with points on Field location
-           call getPointListOnFieldLoc(dstField, dstMaskValues, &
+           call getPointListOnFieldLoc(dstField, dstMaskValues, addOrigCoordsToPointList, &
                 dstCreatedTmpPointList, dstPointlist, rc=localrc)
            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
                 ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1154,6 +1191,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                                   dstMesh, dstArray, dstPointList, dstUsingPointList, &
                                   lregridmethod, &
                                   localLineType,localNormType, &
+                                  localVectorRegrid, &
                                   localpolemethod, localRegridPoleNPnts, &
                                   hasStatusArray, statusArray, &
                                   localExtrapMethod, &
@@ -1185,6 +1223,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                                   dstMesh, dstArray, dstPointList, dstUsingPointList, &
                                   lregridmethod, &
                                   localLineType, localNormType, &
+                                  localVectorRegrid, &
                                   localpolemethod, localRegridPoleNPnts, &
                                   hasStatusArray, statusArray, &
                                   localExtrapMethod, &
@@ -1201,9 +1240,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
              ESMF_ERR_PASSTHRU, &
              ESMF_CONTEXT, rcToReturn=rc)) return
         endif
-
-
-
+       
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!!! If conservative regridding was used, copy fraction information into output Fields !!!!
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1290,8 +1327,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                 ESMF_CONTEXT, rcToReturn=rc)) return
         endif
 
-
-
+        
         !!!!!!!!!!!!!!!!!!
         ! Return success !
         !!!!!!!!!!!!!!!!!!
@@ -1304,6 +1340,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
     end subroutine ESMF_FieldRegridStoreNX
 
+#undef  ESMF_METHOD
+#define ESMF_METHOD "getMeshWithNodesOnFieldLoc"
     ! Get or create a mesh that has nodes on the location which the Field is built
     subroutine getMeshWithNodesOnFieldLoc(field, maskValues, &
          createdTmpMesh, mesh, turnedOnMeshNodeMask, rc)
@@ -1430,6 +1468,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
     end subroutine getMeshWithNodesOnFieldLoc
 
+#undef  ESMF_METHOD
+#define ESMF_METHOD "getMeshOnCornersWFieldOnCenter"
     ! Get or create a mesh that has nodes on corners surrounding the centers that the Field is built on
     ! For a Grid this is Nodes on Corners Field on Centers
     ! For a Mesh this is Nodes surrounding a Field built on Elements
@@ -1540,12 +1580,15 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
     end subroutine getMeshOnCornersWFieldOnCenter
 
+#undef  ESMF_METHOD
+#define ESMF_METHOD "getPointListOnFieldLoc"
     ! Get or create a pointlist with points on the Field location
-    subroutine getPointListOnFieldLoc(field, maskValues, &
+    subroutine getPointListOnFieldLoc(field, maskValues, addOrigCoords, &
          createdTmpPointList, pointlist, rc)
 
       type(ESMF_Field), intent(in)  :: field
       integer(ESMF_KIND_I4), intent(in),  optional :: maskValues(:)
+      logical, intent(in), optional :: addOrigCoords
       logical,          intent(out) :: createdTmpPointList
       type(ESMF_PointList),  intent(out) :: pointlist
       integer,          intent(out),   optional :: rc 
@@ -1583,7 +1626,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
               
          ! Create PointList
          pointlist=ESMF_PointListCreate(grid,staggerloc, &
-              maskValues=maskValues, &
+              maskValues=maskValues, addOrigCoords=addOrigCoords, &
               rc=localrc)
          if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
               ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1599,7 +1642,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
             ESMF_CONTEXT, rcToReturn=rc)) return
 
           ! Create PointList from Mesh
-          pointlist=ESMF_PointListCreate(tmpMesh, meshloc, &
+          pointlist=ESMF_PointListCreate(tmpMesh, meshloc, addOrigCoords=addOrigCoords, &
                maskValues=maskValues, &
                rc=localrc)
           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
@@ -1622,7 +1665,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
           ! Create PointList from Mesh
           ! (Until we have an XGrid location indicator, assume center/element) 
-          pointlist=ESMF_PointListCreate(tmpMesh, ESMF_MESHLOC_ELEMENT, &
+          pointlist=ESMF_PointListCreate(tmpMesh, ESMF_MESHLOC_ELEMENT, addOrigCoords=addOrigCoords, &
                maskValues=maskValues, &
                rc=localrc)
           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
@@ -1641,7 +1684,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
           ! Create PointList 
           pointlist=ESMF_PointListCreate(tmpLocStream, &
-               maskValues=maskValues, &
+               maskValues=maskValues, addOrigCoords=addOrigCoords, &
                rc=localrc)          
           if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
                ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1659,6 +1702,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
     end subroutine getPointListOnFieldLoc
 
+#undef  ESMF_METHOD
+#define ESMF_METHOD "copyFracsIntoOutputField"
     ! Copy frac data into output Field
     subroutine copyFracsIntoOutputField(regridField, regridMesh, outFracField, rc)
 
@@ -2448,7 +2493,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                    ESMF_CONTEXT, rcToReturn=rc)) return
               
               srcPointList=ESMF_PointListCreate(srcGrid,srcStaggerloc, &
-                   maskValues=srcMaskValues, &
+                   maskValues=srcMaskValues, addOrigCoords=addOrigCoords, &
                    rc=localrc)
               if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
                    ESMF_CONTEXT, rcToReturn=rc)) return
@@ -2545,7 +2590,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
              endif
 
              srcPointList=ESMF_PointListCreate(tempMesh, srcMeshloc, &
-                                               maskValues=srcMaskValues, &
+                                               maskValues=srcMaskValues, addOrigCoords=addOrigCoords, &
                                                rc=localrc)
              if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
                ESMF_CONTEXT, rcToReturn=rc)) return
@@ -3057,7 +3102,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     end subroutine ESMF_FieldRegridStoreNX
 #endif
 
-   ! Small subroutine to hide some of the complexity of grid2mesh for conservative regrid
+#undef  ESMF_METHOD
+#define ESMF_METHOD "conserve_GridToMesh"
+    ! Small subroutine to hide some of the complexity of grid2mesh for conservative regrid
     function conserve_GridToMesh(grid, maskValues, turnedOnMeshElemMask, rc)
       type (ESMF_Grid), intent(in)  :: grid
       integer(ESMF_KIND_I4), intent(in),  optional :: maskValues(:)
@@ -3155,7 +3202,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     end function conserve_GridToMesh
 
 
-   ! Small subroutine to hide some of the complexity of grid2mesh for bilinear/patch
+#undef  ESMF_METHOD
+#define ESMF_METHOD "b_or_p_GridToMesh"
+    ! Small subroutine to hide some of the complexity of grid2mesh for bilinear/patch
     function b_or_p_GridToMesh(grid,staggerloc,maskValues, turnedOnMeshNodeMask, rc)
       type (ESMF_Grid), intent(in)  :: grid
       type (ESMF_StaggerLoc), intent(in) :: staggerloc
@@ -3252,23 +3301,27 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !
 ! !INTERFACE:
   !   Private name; call using ESMF_FieldRegridStore()
-      subroutine ESMF_FieldRegridStoreX(xgrid, srcField, dstField, &
-                    keywordEnforcer, regridmethod, routehandle, &
+    subroutine ESMF_FieldRegridStoreX(xgrid, srcField, dstField, keywordEnforcer, &
+                    regridmethod, &
+                    srcTermProcessing, pipeLineDepth, &
+                    routehandle, &
                     srcFracField, dstFracField, &
                     srcMergeFracField, dstMergeFracField, rc)
 !      
 ! !ARGUMENTS:
-      type(ESMF_XGrid),       intent(in)              :: xgrid
-      type(ESMF_Field),       intent(in)              :: srcField
-      type(ESMF_Field),       intent(inout)           :: dstField
+      type(ESMF_XGrid),       intent(in)                      :: xgrid
+      type(ESMF_Field),       intent(in)                      :: srcField
+      type(ESMF_Field),       intent(inout)                   :: dstField
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       type(ESMF_RegridMethod_Flag),   intent(in),    optional :: regridmethod
-      type(ESMF_RouteHandle), intent(inout), optional :: routehandle
-      type(ESMF_Field),       intent(inout), optional :: srcFracField
-      type(ESMF_Field),       intent(inout), optional :: dstFracField
-      type(ESMF_Field),       intent(inout), optional :: srcMergeFracField
-      type(ESMF_Field),       intent(inout), optional :: dstMergeFracField
-      integer,                intent(out),   optional :: rc 
+      integer,                        intent(inout), optional :: srcTermProcessing
+      integer,                        intent(inout), optional :: pipeLineDepth
+      type(ESMF_RouteHandle), intent(inout), optional         :: routehandle
+      type(ESMF_Field),       intent(inout), optional         :: srcFracField
+      type(ESMF_Field),       intent(inout), optional         :: dstFracField
+      type(ESMF_Field),       intent(inout), optional         :: srcMergeFracField
+      type(ESMF_Field),       intent(inout), optional         :: dstMergeFracField
+      integer,                intent(out),   optional         :: rc 
 !
 ! !STATUS:
 ! \begin{itemize}
@@ -3279,6 +3332,10 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! These fraction Fields allow a user to calculate correct flux regridded through {\tt ESMF\_XGrid}.
 ! \item[7.1.0r] Added argument {\tt regridmethod}. This new argument allows the user to choose the regrid method
 !               to apply when computing the routehandle. 
+! \item[8.5.0] Added arguments {\tt srcTermProcessing} and {\tt pipelineDepth} to
+!              provide access to the tuning parameters affecting the sparse matrix
+!              execution. See the text for details on the impact
+!              {\tt srcTermProcessing} can have on bit-for-bit reproducibility.
 ! \end{description}
 ! \end{itemize}
 !
@@ -3320,6 +3377,61 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !           The type of interpolation. For this method only 
 !           {\tt ESMF\_REGRIDMETHOD\_CONSERVE} and {\tt ESMF\_REGRIDMETHOD\_CONSERVE\_2ND} are
 !           supported. If not specified, defaults to {\tt ESMF\_REGRIDMETHOD\_CONSERVE}.
+!     \item [{[srcTermProcessing]}]
+!           The {\tt srcTermProcessing} parameter controls how many source terms,
+!           located on the same PET and summing into the same destination element,
+!           are summed into partial sums on the source PET before being transferred
+!           to the destination PET. A value of 0 indicates that the entire arithmetic
+!           is done on the destination PET; source elements are neither multiplied 
+!           by their factors nor added into partial sums before being sent off by the
+!           source PET. A value of 1 indicates that source elements are multiplied
+!           by their factors on the source side before being sent to the destination
+!           PET. Larger values of {\tt srcTermProcessing} indicate the maximum number
+!           of terms in the partial sums on the source side.
+!
+!     Note that partial sums may lead to bit-for-bit differences in the results.
+!     See section \ref{RH:bfb} for an in-depth discussion of {\em all}
+!     bit-for-bit reproducibility aspects related to route-based communication
+!     methods.
+!
+!     \begin{sloppypar}
+!     The {\tt ESMF\_FieldRegridStore()} method implements an auto-tuning scheme
+!     for the {\tt srcTermProcessing} parameter. The intent on the 
+!     {\tt srcTermProcessing} argument is "{\tt inout}" in order to 
+!     support both overriding and accessing the auto-tuning parameter.
+!     If an argument $>= 0$ is specified, it is used for the 
+!     {\tt srcTermProcessing} parameter, and the auto-tuning phase is skipped.
+!     In this case the {\tt srcTermProcessing} argument is not modified on
+!     return. If the provided argument is $< 0$, the {\tt srcTermProcessing}
+!     parameter is determined internally using the auto-tuning scheme. In this
+!     case the {\tt srcTermProcessing} argument is re-set to the internally
+!     determined value on return. Auto-tuning is also used if the optional 
+!     {\tt srcTermProcessing} argument is omitted.
+!     \end{sloppypar}
+!     
+!   \item [{[pipelineDepth]}]
+!     The {\tt pipelineDepth} parameter controls how many messages a PET
+!     may have outstanding during a sparse matrix exchange. Larger values
+!     of {\tt pipelineDepth} typically lead to better performance. However,
+!     on some systems too large a value may lead to performance degradation,
+!     or runtime errors.
+!
+!     Note that the pipeline depth has no effect on the bit-for-bit
+!     reproducibility of the results. However, it may affect the performance
+!     reproducibility of the exchange.
+!
+!     The {\tt ESMF\_FieldRegridStore()} method implements an auto-tuning scheme
+!     for the {\tt pipelineDepth} parameter. The intent on the 
+!     {\tt pipelineDepth} argument is "{\tt inout}" in order to 
+!     support both overriding and accessing the auto-tuning parameter.
+!     If an argument $>= 0$ is specified, it is used for the 
+!     {\tt pipelineDepth} parameter, and the auto-tuning phase is skipped.
+!     In this case the {\tt pipelineDepth} argument is not modified on
+!     return. If the provided argument is $< 0$, the {\tt pipelineDepth}
+!     parameter is determined internally using the auto-tuning scheme. In this
+!     case the {\tt pipelineDepth} argument is re-set to the internally
+!     determined value on return. Auto-tuning is also used if the optional 
+!     {\tt pipelineDepth} argument is omitted.
 !     \item [{[routehandle]}]
 !           The handle that implements the regrid and that can be used in later 
 !           {\tt ESMF\_FieldRegrid}.
@@ -3362,7 +3474,6 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         type(ESMF_Array)     :: dstFracArray
         type(ESMF_STAGGERLOC):: interpFieldStaggerloc, fracFieldStaggerloc
         type(ESMF_MESHLOC)   :: interpFieldMeshloc, fracFieldMeshloc
-        integer              :: srcTermProcessingVal
         type(ESMF_RegridMethod_Flag) :: lregridmethod
         type(ESMF_Mesh)      :: superMesh
         type(ESMF_Field)     :: tmpSrcField, tmpDstField
@@ -3852,10 +3963,10 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                 ESMF_CONTEXT, rcToReturn=rc)) return
            
            ! call FieldSMMStore
-           srcTermProcessingVal = 0
            call ESMF_FieldSMMStore(srcField, dstField, routehandle, &
                 sparseMat%factorList, sparseMat%factorIndexList, &
-                srcTermProcessing=srcTermProcessingVal, &
+                srcTermProcessing=srcTermProcessing, &
+                pipeLineDepth=pipeLineDepth, &
                 rc=localrc)
            if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
                 ESMF_CONTEXT, rcToReturn=rc)) return
@@ -3912,13 +4023,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
            endif
 
            ! Generate routehandle other that 1st order conserve
-           srcTermProcessingVal = 1 ! multiply on src, but all adding on dst
            call ESMF_FieldRegridStoreNX(&
                 srcField=tmpSrcField, &
                 dstField=tmpDstField, &
 ! ??            srcMaskValues, dstMaskValues, &
                 regridmethod=lregridmethod, &
-                srcTermProcessing=srcTermProcessingVal, &
+                srcTermProcessing=srcTermProcessing, &
+                pipeLineDepth=pipeLineDepth, &
                 routehandle=routehandle, &
                 srcFracField=srcFracField, &
                 dstFracField=dstFracField, &
@@ -4280,6 +4391,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 
 
+#undef  ESMF_METHOD
+#define ESMF_METHOD "checkGrid"
     ! Small subroutine to make sure that Grid doesn't
     ! contain some of the properties that aren't currently
     ! allowed in regridding
@@ -4337,7 +4450,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 !------------------------------------------------------------------------------
 
-    ! Same as checkGrid, but less restrictive due to anticipated conversion to a pointlist
+#undef  ESMF_METHOD
+#define ESMF_METHOD "checkGridLite"
+   ! Same as checkGrid, but less restrictive due to anticipated conversion to a pointlist
     subroutine checkGridLite(grid,staggerloc,rc)
         type (ESMF_Grid) :: grid
         type(ESMF_StaggerLoc) :: staggerloc

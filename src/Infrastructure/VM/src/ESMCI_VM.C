@@ -2161,6 +2161,7 @@ VM *VM::getCurrent(
 #endif
   int i = matchTableIndex;
   if (matchTable_tid[i] != mytid){
+    // simple linear search for maching thread id
     for (i=0; i<matchTableBound; i++)
       if (matchTable_tid[i] == mytid) break;
     if (i == matchTableBound){
@@ -2174,6 +2175,55 @@ VM *VM::getCurrent(
   // return successfully
   if (rc!=NULL) *rc = ESMF_SUCCESS;
   return matchTable_vm[i];
+}
+//-----------------------------------------------------------------------------
+
+
+//-----------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "ESMCI::VM::isThreadKnown()"
+//BOPI
+// !IROUTINE:  ESMCI::VM::isThreadKnown - Is executing thread known by any VM
+//
+// !INTERFACE:
+bool VM::isThreadKnown(
+//
+// !RETURN VALUE:
+//    Bool
+//
+// !ARGUMENTS:
+//
+  int *rc){   // return code
+//
+// !DESCRIPTION:
+//   Indicate whether current thread is known by any VM in the local VAS.
+//
+//EOPI
+//-----------------------------------------------------------------------------
+  // initialize return code; assume routine not implemented
+  if (rc!=NULL) *rc = ESMC_RC_NOT_IMPL;   // final return code
+
+  bool found = true;
+  esmf_pthread_t mytid;
+#ifndef ESMF_NO_PTHREADS
+  mytid = pthread_self();
+#else
+  mytid = 0;
+#endif
+  int i = matchTableIndex;
+  if (matchTable_tid[i] != mytid){
+    // simple linear search for maching thread id
+    for (i=0; i<matchTableBound; i++)
+      if (matchTable_tid[i] == mytid) break;
+    if (i == matchTableBound){
+      // executing thread is NOT known as PET by any VM under this VAS.
+      found = false;
+    }
+  }
+
+  // return successfully
+  if (rc!=NULL) *rc = ESMF_SUCCESS;
+  return found;
 }
 //-----------------------------------------------------------------------------
 
@@ -3058,7 +3108,7 @@ char const *VM::getenv(
   char const *name){
 //
 // !DESCRIPTION:
-//    Access environment variables in the global VM object
+//    Access environment variable cached within the global VM object
 //
 //EOPI
 //-----------------------------------------------------------------------------
@@ -3071,6 +3121,43 @@ char const *VM::getenv(
 
   // match found
   return esmfRuntimeEnvValue[i].c_str();
+}
+//-----------------------------------------------------------------------------
+
+
+//-----------------------------------------------------------------------------
+#undef  ESMC_METHOD
+#define ESMC_METHOD "ESMCI::VM::setenv()"
+//BOPI
+// !IROUTINE:  ESMCI::VM::setenv - set environment variable
+// !INTERFACE:
+ void VM::setenv(
+//
+// !RETURN VALUE:
+//    pointer to value or NULL
+//
+// !ARGUMENTS:
+//
+  char const *name,
+  char const *value){
+//
+// !DESCRIPTION:
+//    Set environment variable cached within the global VM object
+//
+//EOPI
+//-----------------------------------------------------------------------------
+  int count = esmfRuntimeEnv.size();
+  int i;
+  for (i=0; i<count; i++)
+    if (!esmfRuntimeEnv[i].compare(name)) break;
+  if (i == count){
+    // no match found -> add new variable
+    esmfRuntimeEnv.push_back(name);
+    esmfRuntimeEnvValue.push_back(value);
+  }else{
+    // match found -> update the value
+    esmfRuntimeEnvValue[i] = std::string(value);
+  }
 }
 //-----------------------------------------------------------------------------
 

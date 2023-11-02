@@ -1,5 +1,6 @@
 [![ESMF Doc Build](https://github.com/esmf-org/esmf/actions/workflows/build-esmf-docs.yml/badge.svg)](https://github.com/esmf-org/esmf/actions/workflows/build-esmf-docs.yml)
 [![ESMPy Doc Build](https://github.com/esmf-org/esmf/actions/workflows/build-esmpy-docs.yml/badge.svg)](https://github.com/esmf-org/esmf/actions/workflows/build-esmpy-docs.yml)
+[![Build ESMF Using Spack](https://github.com/esmf-org/esmf/actions/workflows/test-build-spack.yml/badge.svg)](https://github.com/esmf-org/esmf/actions/workflows/test-build-spack.yml)
 
 # Earth System Modeling Framework (ESMF)
 
@@ -10,6 +11,7 @@ Hello and welcome to ESMF.
  * The [ESMF User's Guide](http://earthsystemmodeling.org/docs/nightly/develop/ESMF_usrdoc/) contains information on building and installing ESMF.
  * The [ESMF Reference Manual](http://earthsystemmodeling.org/docs/nightly/develop/ESMF_refdoc/) contains information on the architecture of ESMF,
    example code, and details of the API (Application Programming Interface).
+ * Visit the [ESMF Web Site](http://earthsystemmodeling.org) for a general overview of the project.
  * Please contact <esmf_support@ucar.edu> with any questions or problems.
 
 ## Downloading ESMF
@@ -30,7 +32,7 @@ Pre-built binaries for ESMF and ESMPy are available through a number of channels
    ```
    docker run -it --rm esmf/esmf-build-release:latest
    ```
-   Replace `latest` in the above command with a valid version, like `8.4.0`, in order to access a specific ESMF version.
+   Replace `latest` in the above command with a valid version, like `8.6.0`, in order to access a specific ESMF version.
    
  * [Anaconda Conda-Forge](https://anaconda.org/conda-forge/): Under [conda-forge/esmpy](https://anaconda.org/conda-forge/esmpy). To install locally (_note Windows is not supported_), run:
    ```
